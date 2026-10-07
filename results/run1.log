@@ -1,0 +1,111 @@
+jax 0.10.0 [CpuDevice(id=0)]
+N = 3145728  T = 364.1 d   WDM: dT = 2.84 h, dF = 48.8 uHz   band 0.098-25.00 mHz
+76 frequency cells, 48 time cells
+OEM preferred interpolation method ignored, using spline interpolation (see InterpolatedOrbits for details)
+equal arms    : max |C_pytdi - C_closed| / sqrt(C_ii C_jj) = 7.1e-13
+ESA, t = 0    : max |C_pytdi - C_closed| / sqrt(C_ii C_jj) = 9.6e-13
+ESA, t = T/2  : max |C_pytdi - C_closed| / sqrt(C_ii C_jj) = 8.4e-13
+max |eps_k| = 0.014301271465356313   quadrupole rms = 0.007793041539733789   link asymmetry max = 0.0008395038500097485 s
+/home/giorgio/Desktop/AET/code/aet_wdm_analyses.py:139: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+FD  residuals (A,E,T): mean [0.16 0.15 0.13]  std [1.01 1.19 0.97]
+WDM residuals (A,E,T): mean [0.02 0.02 0.02]  std [1.03 1.03 1.02]
+A1: FD, diagonal AET         A = 3.0047 ± 0.0042  P = 15.0077 ± 0.0053   bias/σ = ( +1.14,  +1.44)   eval   0.12 ms / 32 walkers, MCMC   2.4 s, acc 0.68, acl 18
+A1: WDM, diagonal AET        A = 3.0047 ± 0.0042  P = 15.0074 ± 0.0053   bias/σ = ( +1.13,  +1.41)   eval   0.70 ms / 32 walkers, MCMC   2.5 s, acc 0.68, acl 19
+/home/giorgio/Desktop/AET/code/aet_wdm_analyses.py:195: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+WDM - FD posterior means in units of sigma: [-0.00397761 -0.04383442]
+sigma ratio WDM/FD: [0.99981295 0.99255993]
+model surfaces: WDM band averages at 151 orbit epochs 34 s, FD time-averaged 38 s
+FD  (time-avg) residuals (A,E,T): mean [-0.03  0.17 -0.09]  std [1.11 1.   0.97]
+WDM (local)    residuals (A,E,T): mean [-0.    0.03 -0.  ]  std [1.   0.99 1.  ]
+WDM local correlation AE: max |rho_model| = 0.020, residual z: mean -0.01 std 1.03
+WDM local correlation AT: max |rho_model| = 0.996, residual z: mean +0.02 std 1.04
+WDM local correlation ET: max |rho_model| = 0.998, residual z: mean -0.01 std 1.04
+A2: WDM, local 3x3           A = 2.9995 ± 0.0041  P = 15.0059 ± 0.0054   bias/σ = ( -0.11,  +1.09)   eval   1.04 ms / 32 walkers, MCMC   3.8 s, acc 0.68, acl 20
+A2: FD, time-averaged 3x3    A = 2.9983 ± 0.0039  P = 15.0052 ± 0.0054   bias/σ = ( -0.44,  +0.96)   eval   0.16 ms / 32 walkers, MCMC   2.2 s, acc 0.68, acl 18
+A2: FD, frozen arms 3x3      A = 2.6636 ± 0.0039  P = 18.4188 ± 0.0064   bias/σ = (-85.66, +533.81)   eval   0.11 ms / 32 walkers, MCMC   2.1 s, acc 0.68, acl 19
+/home/giorgio/Desktop/AET/code/aet_wdm_analyses.py:195: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+/home/giorgio/Desktop/AET/code/aet_wdm_analyses.py:195: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+/home/giorgio/Desktop/AET/code/aet_wdm.py:426: ComplexWarning: Casting complex values to real discards the imaginary part
+  np.add.at(om, i0, wsamp2 * (1 - fr))
+/home/giorgio/Desktop/AET/code/aet_wdm.py:427: ComplexWarning: Casting complex values to real discards the imaginary part
+  np.add.at(om, i0 + 1, wsamp2 * fr)
+0.1–0.2 mHz  |C_q|/C_0 model (q=1..3), A E T: [[0.0083, 0.0077, 0.3371], [0.0041, 0.0042, 0.1647], [0.0034, 0.0036, 0.0159]]
+             data estimate         : [[0.0084, 0.0379, 0.5506], [0.0246, 0.0226, 0.1606], [0.0356, 0.0244, 0.023]] (noise ~ 0.0179)
+1–2 mHz  |C_q|/C_0 model (q=1..3), A E T: [[0.0082, 0.0077, 0.0375], [0.0041, 0.0041, 0.0265], [0.0034, 0.0036, 0.0052]]
+         data estimate         : [[0.0056, 0.0151, 0.0816], [0.0081, 0.0117, 0.0219], [0.005, 0.0037, 0.0165]] (noise ~ 0.0056)
+10–20 mHz  |C_q|/C_0 model (q=1..3), A E T: [[0.0047, 0.0049, 0.0071], [0.0036, 0.0036, 0.004], [0.0035, 0.0034, 0.0035]]
+           data estimate         : [[0.0055, 0.0053, 0.0093], [0.0027, 0.0049, 0.0048], [0.0064, 0.0041, 0.0046]] (noise ~ 0.0018)
+WDM neighbour-pixel correlation (A,E,T): time [-0.0004  0.0001  0.0013]  frequency [-0.0003 -0.0005 -0.0006]  (noise ~ 0.0008)
+/home/giorgio/Desktop/AET/code/aet_wdm_analyses.py:400: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  fig.tight_layout(); fig.savefig(os.path.join(FIG, "fd_bin_correlations.pdf")); plt.show()
+/home/giorgio/Desktop/AET/code/aet_wdm.py:426: ComplexWarning: Casting complex values to real discards the imaginary part
+  np.add.at(om, i0, wsamp2 * (1 - fr))
+/home/giorgio/Desktop/AET/code/aet_wdm.py:427: ComplexWarning: Casting complex values to real discards the imaginary part
+  np.add.at(om, i0 + 1, wsamp2 * fr)
+K =   128 bins (matrix 384x384):      7.55 ms per evaluation
+K =   256 bins (matrix 768x768):     13.80 ms per evaluation
+K =   512 bins (matrix 1536x1536):    276.20 ms per evaluation
+K =  1024 bins (matrix 3072x3072):    281.61 ms per evaluation
+K =  2048 bins (matrix 6144x6144):   1886.47 ms per evaluation
+measured scaling ~ K^1.39; full band K = 784896: extrapolated (K^3) 1.06e+08 s = 3.4 yr per evaluation, dense matrix 89 TB
+{
+ "wdm_cells": 1.0369131198967807,
+ "fd_cells": 0.15637338001397438,
+ "wdm_fine": 101.46922719868599,
+ "fd_fine_blockdiag": 75.97995560063282,
+ "fd_dense_extrapolated_s_per_point": 106193073.01270856,
+ "fd_dense_scaling": 1.3859509325810382,
+ "K_full": 784896,
+ "n_wdm_pixels": 1557528,
+ "dense_memory_TB": 88.712889237504
+}
+/home/giorgio/Desktop/AET/code/aet_wdm_analyses.py:464: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  ax.legend(fontsize=7.5); fig.tight_layout(); fig.savefig(os.path.join(FIG, "cost_scaling.pdf")); plt.show()
+sigma_t = 2.43 h,  (sigma_t Omega)^2/2 = 1.51e-06
+{
+ "sigma_t_over_dT": 0.8528884159111436,
+ "half_sigmaOmega2": 1.511841114242865e-06,
+ "delta_fd_max": {
+  "A": 0.051700239588842775,
+  "E": 0.04939602761954714,
+  "T": 1.5981813110362733
+ },
+ "delta_wdm_max": {
+  "A": 1.824076683994731e-07,
+  "E": 9.992106488672824e-08,
+  "T": 0.00010144624673603841
+ },
+ "delta_fd_at_1mHz": {
+  "A": 0.023117436108863024,
+  "E": 0.022519609168018893,
+  "T": 0.46968824117819286
+ },
+ "delta_wdm_at_1mHz": {
+  "A": 6.841996189081185e-08,
+  "E": 5.350044318193589e-08,
+  "T": 1.9790031613469616e-06
+ },
+ "max_abs_rho_TE_local": 0.9995234229451904,
+ "max_abs_rho_TE_avg": 0.3215399796623546
+}
+/home/giorgio/Desktop/AET/code/aet_wdm_analyses.py:514: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  fig.tight_layout(); fig.savefig(os.path.join(FIG, "fd_vs_wdm_estimate.pdf")); plt.show()
+A3: FD, equal-arm diag AET   A = 2.6559 ± 0.0039  P = 18.7405 ± 0.0065   bias/σ = (-87.33, +579.91)   eval   0.12 ms / 32 walkers, MCMC   1.0 s, acc 0.68, acl 18
+A3: WDM, equal-arm diag AET  A = 2.6589 ± 0.0039  P = 18.6967 ± 0.0065   bias/σ = (-86.37, +565.52)   eval   1.24 ms / 32 walkers, MCMC   2.6 s, acc 0.68, acl 19
+A3: FD, equal-arm diag AE only A = 2.9992 ± 0.0042  P = 15.0087 ± 0.0068   bias/σ = ( -0.19,  +1.28)   eval   0.09 ms / 32 walkers, MCMC   0.9 s, acc 0.68, acl 19
+/home/giorgio/Desktop/AET/code/aet_wdm_analyses.py:195: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+/home/giorgio/Desktop/AET/code/aet_wdm_analyses.py:559: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  fig.tight_layout(); fig.savefig(os.path.join(FIG, "tchannel_mismatch.pdf")); plt.show()
+A1: FD, diagonal AET             A =   3.0047 ± 0.0042 (   +1.1σ)   P =  15.0077 ± 0.0053 (   +1.4σ)     0.12 ms/eval    2.4 s MCMC
+A1: WDM, diagonal AET            A =   3.0047 ± 0.0042 (   +1.1σ)   P =  15.0074 ± 0.0053 (   +1.4σ)     0.70 ms/eval    2.5 s MCMC
+A2: WDM, local 3x3               A =   2.9995 ± 0.0041 (   -0.1σ)   P =  15.0059 ± 0.0054 (   +1.1σ)     1.04 ms/eval    3.8 s MCMC
+A2: FD, time-averaged 3x3        A =   2.9983 ± 0.0039 (   -0.4σ)   P =  15.0052 ± 0.0054 (   +1.0σ)     0.16 ms/eval    2.2 s MCMC
+A2: FD, frozen arms 3x3          A =   2.6636 ± 0.0039 (  -85.7σ)   P =  18.4188 ± 0.0064 ( +533.8σ)     0.11 ms/eval    2.1 s MCMC
+A3: FD, equal-arm diag AET       A =   2.6559 ± 0.0039 (  -87.3σ)   P =  18.7405 ± 0.0065 ( +579.9σ)     0.12 ms/eval    1.0 s MCMC
+A3: WDM, equal-arm diag AET      A =   2.6589 ± 0.0039 (  -86.4σ)   P =  18.6967 ± 0.0065 ( +565.5σ)     1.24 ms/eval    2.6 s MCMC
+A3: FD, equal-arm diag AE only   A =   2.9992 ± 0.0042 (   -0.2σ)   P =  15.0087 ± 0.0068 (   +1.3σ)     0.09 ms/eval    0.9 s MCMC
