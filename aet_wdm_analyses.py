@@ -661,8 +661,9 @@ np.savez(os.path.join(RES, "chains.npz"), s1_fd=s1_fd, s1_wd=s1_wd, s2_wd=s2_wd,
 #   4096 bins already, months to years for the full band (89 TB).  The block-diagonal FD shortcuts are fast but
 #   either biased by hundreds of σ (arms frozen at mid-year) or unbiased with a 10% over-confident error on $A$
 #   (yearly-averaged model: the local redundancy between $T$ and $E$ is lost).  So: yes, WDM is much faster than
-#   the *correct* FD analysis — but the WDM covariance is diagonal in the pixels, not in the channels (3×3 blocks,
-#   inverted in closed form); diagonalising the channels needs the local, parameter-dependent eigenbasis.
+#   the *correct* FD analysis.  The WDM covariance is diagonal in the pixels and, in the fixed basis of
+#   `diagonal_likelihood.ipynb` (the TM covariance is 4× the OMS one up to a diagonal term, so one basis per pixel
+#   diagonalises it for every $A$, $P$), also in the channels: no 3×3 algebra and no parameter-dependent rotation.
 # * **Analysis 3 (standard equal-arm diagonal AET in FD).**  Biased by $-87\sigma$ in $A$ and $+580\sigma$ in $P$; the
 #   same model in WDM is equally biased, so the cure is the local model, not the domain.  The bias comes from the
 #   null channel ($T$ power 529× the equal-arm prediction at 0.1 mHz); dropping $T$ removes it at the price of a

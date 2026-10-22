@@ -688,6 +688,199 @@ def make_loglik_diag(y, dof, u_tm, u_oms, complex_data, channels=(0, 1, 2)):
     return jax.jit(loglik)
 
 
+def make_loglik_full_lapack(y, dof, u_tm, u_oms, complex_data):
+    """Same as :func:`make_loglik_full` but with numerical (LAPACK) ``slogdet`` and
+    ``solve`` instead of the closed-form cofactors: the reference "invert the 3x3
+    covariance numerically at every pixel" implementation, for timing only."""
+    sc = _cell_scale(u_tm, u_oms)
+    sc = np.broadcast_to(sc, np.broadcast_shapes(sc.shape, np.shape(dof)))
+    y = jnp.asarray(np.asarray(y) / sc[..., None, None])
+    u_tm = jnp.asarray(np.asarray(u_tm) / sc[..., None, None])
+    u_oms = jnp.asarray(np.asarray(u_oms) / sc[..., None, None])
+    wgt_np = np.asarray(dof) if complex_data else 0.5 * np.asarray(dof)
+    const = -float(np.sum(wgt_np * 3 * np.log(sc)))
+    wgt = jnp.asarray(wgt_np)
+
+    def loglik(theta):
+        c = theta[0] ** 2 * u_tm + theta[1] ** 2 * u_oms
+        ld = jnp.linalg.slogdet(c)[1]
+        tr = jnp.real(jnp.trace(jnp.linalg.solve(c, y), axis1=-2, axis2=-1))
+        return -jnp.sum(wgt * (ld + tr)) + const
+    return jax.jit(loglik)
+
+
+# ---------------------------------------------------------------------------
+# Diagonal form: simultaneous diagonalisation of the TM and OMS covariances
+# ---------------------------------------------------------------------------
+#
+# For any frozen delays (TDI 1 or 2, unequal up/down links) the TM and OMS parts of
+# the closed form share their off-diagonal elements up to a factor 4 and differ only
+# on the diagonal:  G_tm = 4 K - 32 diag(Delta),  G_oms = K,  Delta_X = |G_X|^2 s2^2 s3^2
+# (and cyclically), so that  C = (4 Sa + Sn) K - 32 Sa diag(Delta).  With
+# D = diag(sqrt(Delta)) and B = D^-1 K D^-1 / 8 = sum_j x_j u_j u_j^T, the basis
+# v_j = D^-1 u_j / sqrt(8 x_j) gives  v_j^T C v_k = delta_jk (Sn + kappa_j Sa),
+# kappa_j = 4 (1 - 1/x_j): a basis independent of A, P and of the PSD shapes.
+
+def tdi2_delta(f, d, xp=np):
+    """Diagonal TM deficit ``Delta`` ``(..., 3)`` of :func:`tdi2_geometry`:
+    ``G_tm = 4 G_oms - 32 diag(Delta)``, ``Delta_X = |G_X|^2 sin^2(w L2) sin^2(w L3)``."""
+    f = xp.asarray(f)
+    w = 2 * xp.pi * f[..., None]
+    lbar, _ = arm_quantities(xp.asarray(d), xp)
+    s2 = xp.sin(w * lbar) ** 2                                   # (..., 3) arms 1, 2, 3
+    lsum = xp.stack([lbar[1] + lbar[2], lbar[2] + lbar[0], lbar[0] + lbar[1]])
+    g2 = 4 * xp.sin(w * lsum) ** 2                               # |G_X|^2, |G_Y|^2, |G_Z|^2
+    return g2 * xp.stack([s2[..., 1] * s2[..., 2], s2[..., 2] * s2[..., 0],
+                          s2[..., 0] * s2[..., 1]], axis=-1)
+
+
+def sym3_eigh(b, xp=np):
+    """Closed-form eigen-decomposition of batches of real symmetric 3x3 matrices.
+
+    Eigenvalues (ascending) from the invariants ``I1 = tr B``, ``I2`` (sum of the
+    principal 2x2 minors), ``I3 = det B`` by the trigonometric solution of
+    ``x^3 - I1 x^2 + I2 x - I3 = 0``; the smallest one as ``I3 / (x2 x3)``, which
+    avoids the cancellation when it is much smaller than the others (null channel).
+    Eigenvectors: for the eigenvalue farthest from the other two, the largest column
+    of the rank-one adjugate ``adj(B - x I)``; for the other two, the 2x2 rotation
+    that diagonalises ``B`` in the orthogonal plane (robust to degeneracies, e.g.
+    A and E for equal arms).
+    """
+    b00, b11, b22 = b[..., 0, 0], b[..., 1, 1], b[..., 2, 2]
+    b01, b02, b12 = b[..., 0, 1], b[..., 0, 2], b[..., 1, 2]
+    i1 = b00 + b11 + b22
+    i2 = b00 * b11 + b11 * b22 + b22 * b00 - b01**2 - b02**2 - b12**2
+    i3 = (b00 * (b11 * b22 - b12**2) - b01 * (b01 * b22 - b12 * b02)
+          + b02 * (b01 * b12 - b11 * b02))
+    pi = xp.maximum(i1**2 - 3 * i2, 0.0)
+    cphi = (2 * i1**3 - 9 * i1 * i2 + 27 * i3) / (2 * pi**1.5 + 1e-300)
+    phi = xp.arccos(xp.clip(cphi, -1.0, 1.0)) / 3
+    x3 = i1 / 3 + 2 / 3 * xp.sqrt(pi) * xp.cos(phi)
+    x2 = i1 / 3 + 2 / 3 * xp.sqrt(pi) * xp.cos(phi - 2 * xp.pi / 3)
+    x1 = i3 / (x2 * x3)
+    x = xp.stack([x1, x2, x3], axis=-1)
+
+    unit = lambda v: v / xp.sqrt(xp.sum(v**2, axis=-1, keepdims=True))
+    cross = lambda p, q: xp.stack([p[..., 1] * q[..., 2] - p[..., 2] * q[..., 1],
+                                   p[..., 2] * q[..., 0] - p[..., 0] * q[..., 2],
+                                   p[..., 0] * q[..., 1] - p[..., 1] * q[..., 0]], -1)
+    quad = lambda p, q: xp.einsum("...i,...ij,...j->...", p, b, q)
+
+    iso_low = (x2 - x1) > (x3 - x2)                               # isolated eigenvalue: x1, else x3
+    xi = xp.where(iso_low, x1, x3)
+    a00, a11, a22 = b00 - xi, b11 - xi, b22 - xi
+    adj = xp.stack([xp.stack([a11 * a22 - b12**2, b02 * b12 - b01 * a22, b01 * b12 - b02 * a11], -1),
+                    xp.stack([b02 * b12 - b01 * a22, a00 * a22 - b02**2, b01 * b02 - a00 * b12], -1),
+                    xp.stack([b01 * b12 - b02 * a11, b01 * b02 - a00 * b12, a00 * a11 - b01**2], -1)],
+                   -1)                                            # columns of adj(B - x I)
+    k = xp.argmax(xp.sum(adj**2, axis=-2), axis=-1)
+    ui = unit(xp.take_along_axis(adj, k[..., None, None], axis=-1)[..., 0])
+    # orthonormal pair (p, q) spanning the plane orthogonal to ui, then a 2x2 rotation
+    ek = (xp.arange(3) == xp.argmin(xp.abs(ui), axis=-1)[..., None]).astype(ui.dtype)
+    p = unit(cross(ui, ek))
+    q = cross(ui, p)
+    ang = 0.5 * xp.arctan2(2 * quad(p, q), quad(p, p) - quad(q, q))
+    ca, sa = xp.cos(ang)[..., None], xp.sin(ang)[..., None]
+    w_hi, w_lo = ca * p + sa * q, ca * q - sa * p                 # larger, smaller eigenvalue
+    il = iso_low[..., None]
+    u = xp.stack([xp.where(il, ui, w_lo), xp.where(il, w_lo, w_hi), xp.where(il, w_hi, ui)],
+                 axis=-1)                                         # columns = eigenvectors
+    return x, u
+
+
+def kappa_closed_form(f, d, xp=np):
+    """``kappa_j`` (ascending) of the complex covariance (FD, TDI 1 or 2) from the cubic
+    of main.tex: roots ``zeta`` of ``z^3 - 2 e1 z^2 + (e1 + 3 e2) z - 2 [e2 + e3 (1 -
+    c1 c2 c3 cos(w Delta_S / 2))]``, with ``e_k`` the elementary symmetric polynomials
+    of ``1/sin^2(w Lbar_k)``, and ``kappa = 4 (1 - 1/zeta)``."""
+    f = xp.asarray(f)
+    w = 2 * xp.pi * f[..., None]
+    lbar, _ = arm_quantities(xp.asarray(d), xp)
+    th = w * lbar
+    a, c = 1 / xp.sin(th) ** 2, xp.cos(th)
+    e1 = a[..., 0] + a[..., 1] + a[..., 2]
+    e2 = a[..., 0] * a[..., 1] + a[..., 1] * a[..., 2] + a[..., 2] * a[..., 0]
+    e3 = a[..., 0] * a[..., 1] * a[..., 2]
+    d12, d23, d31, d13, d32, d21 = (d[..., i] for i in range(6))
+    sagnac = d12 + d23 + d31 - d13 - d32 - d21
+    i1, i2 = 2 * e1, e1 + 3 * e2
+    i3 = 2 * (e2 + e3 * (1 - c[..., 0] * c[..., 1] * c[..., 2] * xp.cos(w[..., 0] * sagnac / 2)))
+    pi = i1**2 - 3 * i2
+    phi = xp.arccos(xp.clip((2 * i1**3 - 9 * i1 * i2 + 27 * i3) / (2 * pi**1.5), -1.0, 1.0)) / 3
+    z3 = i1 / 3 + 2 / 3 * xp.sqrt(pi) * xp.cos(phi)
+    z2 = i1 / 3 + 2 / 3 * xp.sqrt(pi) * xp.cos(phi - 2 * xp.pi / 3)
+    z1 = i3 / (z2 * z3)
+    return 4 * (1 - 1 / xp.stack([z1, z2, z3], axis=-1))
+
+
+def analytic_basis(f, d, xp=np):
+    """Parameter-independent basis that diagonalises ``Re C`` of :func:`tdi2_geometry`.
+
+    Returns ``(v, kappa)``: ``v`` ``(..., 3, 3)`` with columns ``v_j`` in the XYZ
+    basis and ``kappa`` ``(..., 3)`` (ascending), such that for every ``A, P``
+    ``v^T Re C v = diag(P^2 S_oms + kappa A^2 S_tm)``.  ``kappa_1`` is the null
+    channel (``~ (w L)^2`` at low frequency).
+    """
+    _, k = tdi2_geometry(f, d, xp)
+    k = xp.real(k)
+    dsq = xp.sqrt(tdi2_delta(f, d, xp))                          # D = sqrt(Delta) > 0
+    b = k / (8 * dsq[..., :, None] * dsq[..., None, :])
+    x, u = sym3_eigh(b, xp)
+    v = u / dsq[..., :, None] / xp.sqrt(8 * x)[..., None, :]
+    return v, 4 * (1 - 1 / x)
+
+
+def simdiag(u_tm, u_oms):
+    """Exact simultaneous diagonalisation of batches of real symmetric matrices
+    (``u_oms`` positive definite), e.g. window-averaged WDM surfaces.
+
+    Returns ``(v, alpha)`` with ``v^T u_oms v = I`` and ``v^T u_tm v = diag(alpha)``,
+    by Cholesky whitening of ``u_oms`` and :func:`sym3_eigh`; any linear two-component
+    model ``A^2 u_tm + P^2 u_oms`` is then diagonal in the fixed basis ``v``.
+    """
+    u_tm, u_oms = np.asarray(u_tm), np.asarray(u_oms)
+    sc = np.trace(u_oms, axis1=-2, axis2=-1)[..., None, None] / 3
+    lc = np.linalg.cholesky(u_oms / sc)
+    li = np.linalg.inv(lc)
+    m = li @ (u_tm / sc) @ np.swapaxes(li, -1, -2)
+    alpha, q = sym3_eigh(0.5 * (m + np.swapaxes(m, -1, -2)))
+    return np.swapaxes(li, -1, -2) @ q / np.sqrt(sc), alpha
+
+
+def project_diag(y, v):
+    """``diag(v^T y v)`` for batches: the data of the diagonal-form likelihood."""
+    return np.einsum("...ij,...ik,...jk->...k", np.asarray(y), v, v)
+
+
+def make_loglik_eig(yd, dof, alpha, beta, complex_data, const=0.0):
+    """Wishart log-likelihood in the diagonal form, ``lam_j = A^2 alpha_j + P^2 beta_j``:
+    ``-sum wgt sum_j [log lam_j + yd_j / lam_j] + const``.
+
+    ``yd`` ``(..., 3)``: diagonals of the projected data :func:`project_diag`;
+    ``beta=None`` means ``beta_j = 1`` (basis from :func:`simdiag`).  A given ``beta``
+    is divided out of ``alpha`` and ``yd`` (its logarithm goes into the constant), so
+    that ``lam = A^2 alpha + P^2`` is O(1) and its derivatives do not underflow.  One
+    logarithm and one division per pixel: ``sum_j log lam_j = log prod_j lam_j``.
+    """
+    wgt_np = np.asarray(dof) if complex_data else 0.5 * np.asarray(dof)
+    if beta is not None:
+        beta = np.asarray(beta)
+        alpha, yd = np.asarray(alpha) / beta, np.asarray(yd) / beta
+        const = const - float(np.sum(wgt_np[..., None] * np.log(beta)))
+    yd = jnp.asarray(yd)
+    alpha = jnp.asarray(alpha)
+    wgt = jnp.asarray(wgt_np)
+
+    def loglik(theta):
+        lam = theta[0] ** 2 * alpha + theta[1] ** 2
+        l0, l1, l2 = lam[..., 0], lam[..., 1], lam[..., 2]
+        p01 = l0 * l1
+        prod = p01 * l2
+        num = yd[..., 0] * l1 * l2 + yd[..., 1] * l0 * l2 + yd[..., 2] * p01
+        return -jnp.sum(wgt * (jnp.log(prod) + num / prod)) + const
+    return jax.jit(loglik)
+
+
 def time_loglik(loglik, theta, nwalker=32, nrep=50):
     """Mean wall time [s] of one vmapped evaluation over ``nwalker`` points."""
     f = jax.jit(jax.vmap(loglik))
